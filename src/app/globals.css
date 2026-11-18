@@ -214,15 +214,21 @@ body {
   transition-delay: var(--reveal-delay, 0ms);
   will-change: opacity, transform;
 }
-[data-reveal="up"]:not([data-shown]) { opacity: 0; transform: translate3d(0, 48px, 0); }
-[data-reveal="fade"]:not([data-shown]) { opacity: 0; }
-[data-reveal="scale"]:not([data-shown]) { opacity: 0; transform: scale(0.92); filter: blur(6px); }
-[data-reveal="left"]:not([data-shown]) { opacity: 0; transform: translate3d(-56px, 0, 0); }
-[data-reveal="right"]:not([data-shown]) { opacity: 0; transform: translate3d(56px, 0, 0); }
-/* Shoji wipe: slides open like a paper screen */
-[data-reveal="shoji"]:not([data-shown]) { clip-path: inset(0 50% 0 50% round 24px); opacity: 0.2; }
-[data-reveal="shoji"][data-shown] { clip-path: inset(0 0 0 0 round 0); }
-[data-reveal="rise"]:not([data-shown]) { opacity: 0; transform: perspective(900px) rotateX(18deg) translate3d(0, 60px, 0); }
+/* Hidden states apply only while the reveal script is active (html[data-reveal-js="on"],
+   set by an inline script in <head>). Without JS, or if hydration is slow and the
+   fallback timer flips it to "off", all content is simply visible. */
+html[data-reveal-js="on"] [data-reveal="up"]:not([data-shown]) { opacity: 0; transform: translate3d(0, 48px, 0); }
+html[data-reveal-js="on"] [data-reveal="fade"]:not([data-shown]) { opacity: 0; }
+html[data-reveal-js="on"] [data-reveal="scale"]:not([data-shown]) { opacity: 0; transform: scale(0.92); filter: blur(6px); }
+html[data-reveal-js="on"] [data-reveal="left"]:not([data-shown]) { opacity: 0; transform: translate3d(-56px, 0, 0); }
+html[data-reveal-js="on"] [data-reveal="right"]:not([data-shown]) { opacity: 0; transform: translate3d(56px, 0, 0); }
+/* Shoji wipe: slides open like a paper screen. The closed state keeps a visible
+   centre strip: a zero-area clip-path makes IntersectionObserver report 0% visible
+   (Chrome applies the target's own clip-path), so the reveal would never fire. */
+html[data-reveal-js="on"] [data-reveal="shoji"]:not([data-shown]) { clip-path: inset(0 32% 0 32% round 24px); opacity: 0; }
+/* Open state extends past the box so overflowing decorations (rod caps, badges) aren't cut. */
+[data-reveal="shoji"][data-shown] { clip-path: inset(-160px -160px -160px -160px round 0); }
+html[data-reveal-js="on"] [data-reveal="rise"]:not([data-shown]) { opacity: 0; transform: perspective(900px) rotateX(18deg) translate3d(0, 60px, 0); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

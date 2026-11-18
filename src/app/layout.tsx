@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans, Shippori_Mincho_B1 } from "next/font/google";
+import { revealBootScript } from "@/components/revealBoot";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
 import "./globals.css";
 
@@ -26,7 +27,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${fraunces.variable} ${shippori.variable}`}>
+    // suppressHydrationWarning: the boot script sets data-reveal-js on <html> before hydration.
+    <html lang="en" className={`${jakarta.variable} ${fraunces.variable} ${shippori.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: revealBootScript }} />
+      </head>
       <body>
         <LanguageProvider>{children}</LanguageProvider>
       </body>

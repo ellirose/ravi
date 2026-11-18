@@ -4,6 +4,11 @@ import { useEffect, useRef, useState, type CSSProperties, type ElementType, type
 
 type RevealVariant = "up" | "fade" | "scale" | "left" | "right" | "shoji" | "rise";
 
+/** Tells the <head> boot script (see revealBoot.ts) that React has hydrated. */
+function markRevealReady() {
+  (window as unknown as { __revealReady?: boolean }).__revealReady = true;
+}
+
 /** Reveals children once when they scroll into view (CSS-driven, see globals.css). */
 export function Reveal({
   as: Tag = "div",
@@ -12,7 +17,6 @@ export function Reveal({
   className,
   style,
   children,
-  threshold = 0.18,
 }: {
   as?: ElementType;
   variant?: RevealVariant;
@@ -20,24 +24,34 @@ export function Reveal({
   className?: string;
   style?: CSSProperties;
   children?: ReactNode;
-  threshold?: number;
 }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    markRevealReady();
+    const show = () => el.setAttribute("data-shown", "");
+    // Already on screen, or already scrolled past (e.g. restored scroll / hash link).
+    const r = el.getBoundingClientRect();
+    if (r.top < window.innerHeight * 0.94) {
+      show();
+      return;
+    }
+    // threshold 0 = any visible pixel, so very tall elements (taller than the
+    // viewport / threshold) can still trigger; the negative bottom margin keeps
+    // the reveal just inside the viewport rather than at its very edge.
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          el.setAttribute("data-shown", "");
+          show();
           io.disconnect();
         }
       },
-      { threshold, rootMargin: "0px 0px -6% 0px" },
+      { threshold: 0, rootMargin: "0px 0px -6% 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [threshold]);
+  }, []);
 
   return (
     <Tag
