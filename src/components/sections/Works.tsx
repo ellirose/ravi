@@ -30,10 +30,13 @@ export function Works() {
   }, []);
 
   useEffect(() => {
-    const btn = railRef.current?.querySelector<HTMLButtonElement>(`[data-f="${filter}"]`);
-    if (!btn) return;
+    const rail = railRef.current;
+    const btn = rail?.querySelector<HTMLButtonElement>(`[data-f="${filter}"]`);
+    if (!rail || !btn) return;
     setPill({ left: btn.offsetLeft, width: btn.offsetWidth });
-    btn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    // Scroll only the rail horizontally. (scrollIntoView would also scroll the
+    // window, which made every page load jump down to this section.)
+    rail.scrollTo({ left: btn.offsetLeft - (rail.clientWidth - btn.offsetWidth) / 2, behavior: "smooth" });
   }, [filter, t]);
 
   const choose = (f: Filter) => {
@@ -84,7 +87,7 @@ export function Works() {
 
         <div key={filter} role="tabpanel" className="mt-14 columns-1 gap-8 sm:columns-2 lg:columns-3 xl:columns-4">
           {visible.map((w, i) => (
-            <Reveal key={w.id} variant="rise" delay={(i % 4) * 80} className="mb-10 break-inside-avoid" threshold={0.05}>
+            <Reveal key={w.id} variant="rise" delay={(i % 4) * 80} className="mb-10 break-inside-avoid">
               <WorkCard work={w} onOpen={() => open(list, list.indexOf(w))} />
             </Reveal>
           ))}

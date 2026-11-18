@@ -50,7 +50,9 @@ export function LightboxProvider({ children }: { children: React.ReactNode }) {
   // Keep the active thumbnail in view
   useEffect(() => {
     if (!state) return;
-    thumbs.current?.querySelector<HTMLElement>(`[data-i="${state.index}"]`)?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    const strip = thumbs.current;
+    const thumb = strip?.querySelector<HTMLElement>(`[data-i="${state.index}"]`);
+    if (strip && thumb) strip.scrollTo({ left: thumb.offsetLeft - (strip.clientWidth - thumb.offsetWidth) / 2, behavior: "smooth" });
   }, [state]);
 
   const work = state ? state.items[state.index] : null;
