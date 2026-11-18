@@ -69,7 +69,7 @@ export function Motion() {
             <div className="rounded-[34px] bg-sumi p-3 shadow-float sm:p-4">
               <div className="film-holes-x mx-6 h-4 opacity-60" aria-hidden />
               <div className="relative my-2 aspect-video overflow-hidden rounded-[22px] bg-ai-soft">
-                <LoopVideo ref={player} src="/media/video/tokyo-motion.mp4" poster="/media/images/tokyo-city.jpg" onPlayingChange={onPlayingChange} />
+                <LoopVideo ref={player} src="/media/video/tokyo-motion.mp4" poster="/media/images/tokyo-city.jpg" posterSizes="(min-width: 1024px) 50vw, 100vw" onPlayingChange={onPlayingChange} />
                 {/* frame guides sit beneath the HUD */}
                 <div aria-hidden className="pointer-events-none absolute inset-[11%] rounded-lg border border-paper/35" />
                 <div className="absolute top-4 left-4 flex flex-wrap items-center gap-2">

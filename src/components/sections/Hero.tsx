@@ -128,7 +128,7 @@ export function Hero() {
           {/* Marumado round window with sakura loop video */}
           <Reveal variant="scale" delay={250} className="absolute bottom-[1%] left-[4%] z-20 aspect-square w-[38%] lg:left-[0%] lg:w-[36%]">
             <div className="relative size-full overflow-hidden rounded-full bg-sakura-soft shadow-float ring-8 ring-paper">
-              <LoopVideo src="/media/video/hero-sakura.mp4" poster="/media/images/sakura-branch.jpg" />
+              <LoopVideo src="/media/video/hero-sakura.mp4" poster="/media/images/sakura-branch.jpg" posterSizes="(min-width: 1024px) 20vw, 40vw" />
             </div>
             <span className="absolute -top-2 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-sumi px-3.5 py-1.5 text-xs font-bold tracking-wider text-paper shadow-lift">
               <span className="animate-blink size-2 rounded-full bg-shu" />
