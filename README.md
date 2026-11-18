@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ravi Y.T. — Portfolio
 
-## Getting Started
+A one-page portfolio built with **Next.js 16** (App Router) and **Tailwind CSS 4**. The look is bright and Japanese-inspired: washi paper, vermilion seals, sakura and seigaiha waves. The site is available in English, Brazilian Portuguese and Spanish.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run build && npm start   # production
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+  app/                 layout (fonts, metadata), page, globals.css (design tokens, textures, card shapes)
+  i18n/                dictionaries.ts (EN / PT-BR / ES copy), LanguageProvider (localStorage-backed)
+  data/                works.generated.ts (image sizes), works.ts (titles, Japan collection, hero reel)
+  components/
+    sections/          Hero, Impact, About, JapanCollection, Works, Motion, Experience, Projects, Toolkit
+    canvas/            SakuraCanvas, EnsoCanvas, InkTrail, ToolSphere (Canvas 2D effects)
+    Header, Footer, LanguageSwitcher, Flags, Logo, Lightbox, WorkCard, LoopVideo, motion (Reveal/Tilt/CountUp)
+public/
+  works/               portfolio images (copied from ../docs/projects)
+  profile/             portrait photos
+  media/               stock textures, images and video; see media/credits.json
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Editing content
 
-## Learn More
+- **Text** for all three languages is in `src/i18n/dictionaries.ts`. Every language has the same keys.
+- **Adding a work:** place the image under `public/works/<category>/`, then add an entry to `src/data/works.generated.ts` with its pixel `w`/`h`. Override its title in `titleOverrides` in `works.ts` if needed.
+- **Colours and textures** are tokens in the `@theme` block of `globals.css`.
 
-To learn more about Next.js, take a look at the following resources:
+## Media licensing
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+All stock media in `public/media` comes from Unsplash, Pexels or Mixkit, under licenses that allow commercial use. Authors and source URLs are listed in `public/media/credits.json`.
