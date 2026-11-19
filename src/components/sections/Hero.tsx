@@ -113,6 +113,7 @@ export function Hero() {
               <Image
                 src="/profile/ravi-03.png"
                 alt="Ravi Y.T. holding a camera"
+                data-hero-portrait
                 fill
                 preload
                 sizes="(min-width: 1024px) 34vw, 70vw"

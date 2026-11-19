@@ -1,5 +1,6 @@
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { IntroScene } from "@/components/intro/IntroScene";
 import { LightboxProvider } from "@/components/Lightbox";
 import { About } from "@/components/sections/About";
 import { Experience } from "@/components/sections/Experience";
@@ -14,6 +15,7 @@ import { Works } from "@/components/sections/Works";
 export default function Home() {
   return (
     <LightboxProvider>
+      <IntroScene />
       <Header />
       <main>
         <Hero />

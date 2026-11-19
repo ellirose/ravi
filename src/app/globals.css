@@ -217,18 +217,41 @@ body {
 /* Hidden states apply only while the reveal script is active (html[data-reveal-js="on"],
    set by an inline script in <head>). Without JS, or if hydration is slow and the
    fallback timer flips it to "off", all content is simply visible. */
-html[data-reveal-js="on"] [data-reveal="up"]:not([data-shown]) { opacity: 0; transform: translate3d(0, 48px, 0); }
-html[data-reveal-js="on"] [data-reveal="fade"]:not([data-shown]) { opacity: 0; }
-html[data-reveal-js="on"] [data-reveal="scale"]:not([data-shown]) { opacity: 0; transform: scale(0.92); filter: blur(6px); }
-html[data-reveal-js="on"] [data-reveal="left"]:not([data-shown]) { opacity: 0; transform: translate3d(-56px, 0, 0); }
-html[data-reveal-js="on"] [data-reveal="right"]:not([data-shown]) { opacity: 0; transform: translate3d(56px, 0, 0); }
+html[data-reveal-js="on"] [data-reveal="up"]:not([data-shown]),
+html[data-intro="playing"] #home [data-reveal="up"] { opacity: 0; transform: translate3d(0, 48px, 0); }
+html[data-reveal-js="on"] [data-reveal="fade"]:not([data-shown]),
+html[data-intro="playing"] #home [data-reveal="fade"] { opacity: 0; }
+html[data-reveal-js="on"] [data-reveal="scale"]:not([data-shown]),
+html[data-intro="playing"] #home [data-reveal="scale"] { opacity: 0; transform: scale(0.92); filter: blur(6px); }
+html[data-reveal-js="on"] [data-reveal="left"]:not([data-shown]),
+html[data-intro="playing"] #home [data-reveal="left"] { opacity: 0; transform: translate3d(-56px, 0, 0); }
+html[data-reveal-js="on"] [data-reveal="right"]:not([data-shown]),
+html[data-intro="playing"] #home [data-reveal="right"] { opacity: 0; transform: translate3d(56px, 0, 0); }
 /* Shoji wipe: slides open like a paper screen. The closed state keeps a visible
    centre strip: a zero-area clip-path makes IntersectionObserver report 0% visible
    (Chrome applies the target's own clip-path), so the reveal would never fire. */
-html[data-reveal-js="on"] [data-reveal="shoji"]:not([data-shown]) { clip-path: inset(0 32% 0 32% round 24px); opacity: 0; }
+html[data-reveal-js="on"] [data-reveal="shoji"]:not([data-shown]),
+html[data-intro="playing"] #home [data-reveal="shoji"] { clip-path: inset(0 32% 0 32% round 24px); opacity: 0; }
 /* Open state extends past the box so overflowing decorations (rod caps, badges) aren't cut. */
 [data-reveal="shoji"][data-shown] { clip-path: inset(-160px -160px -160px -160px round 0); }
-html[data-reveal-js="on"] [data-reveal="rise"]:not([data-shown]) { opacity: 0; transform: perspective(900px) rotateX(18deg) translate3d(0, 60px, 0); }
+html[data-reveal-js="on"] [data-reveal="rise"]:not([data-shown]),
+html[data-intro="playing"] #home [data-reveal="rise"] { opacity: 0; transform: perspective(900px) rotateX(18deg) translate3d(0, 60px, 0); }
+
+/* ───────────────────────── Intro overlay ─────────────────────────
+   data-intro: "playing" (overlay covers, page held) → "reveal" (page revealed
+   while the emblem scatters; overlay is click-through) → "done". */
+.intro-root,
+.intro-skip { display: none; }
+html[data-intro="playing"] .intro-root,
+html[data-intro="reveal"] .intro-root { display: block; }
+html[data-intro="playing"] .intro-skip { display: block; }
+html[data-intro="reveal"] .intro-root { pointer-events: none; background: transparent; }
+html[data-intro="reveal"] .intro-placeholder { display: none; }
+.intro-canvas { opacity: 0; transition: opacity 0.6s var(--ease-silk); }
+.intro-canvas[data-live] { opacity: 1; }
+html[data-intro="playing"] { overflow: hidden; }
+/* Header slides in with the reveal */
+html[data-intro="playing"] header > div { opacity: 0; transform: translate3d(0, -24px, 0); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

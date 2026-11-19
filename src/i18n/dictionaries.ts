@@ -35,6 +35,7 @@ export type Dict = {
   };
   footer: { tagline: string; rights: string; backTop: string; crafted: string; explore: string };
   lightbox: { close: string; prev: string; next: string };
+  intro: { skip: string };
 };
 
 const toolsEn = [
@@ -181,6 +182,7 @@ const en: Dict = {
   },
   footer: { tagline: "Design, motion & code — crafted in Tokyo.", rights: "All rights reserved.", backTop: "Back to top", crafted: "Made with Next.js, Canvas & a little washi.", explore: "Explore" },
   lightbox: { close: "Close", prev: "Previous work", next: "Next work" },
+  intro: { skip: "Skip intro" },
 };
 
 const pt: Dict = {
@@ -325,6 +327,7 @@ const pt: Dict = {
   },
   footer: { tagline: "Design, vídeo & código — criados em Tóquio.", rights: "Todos os direitos reservados.", backTop: "Voltar ao topo", crafted: "Feito com Next.js, Canvas e um pouco de washi.", explore: "Explorar" },
   lightbox: { close: "Fechar", prev: "Trabalho anterior", next: "Próximo trabalho" },
+  intro: { skip: "Pular intro" },
 };
 
 const es: Dict = {
@@ -469,6 +472,7 @@ const es: Dict = {
   },
   footer: { tagline: "Diseño, vídeo y código — hechos en Tokio.", rights: "Todos los derechos reservados.", backTop: "Volver arriba", crafted: "Hecho con Next.js, Canvas y un poco de washi.", explore: "Explorar" },
   lightbox: { close: "Cerrar", prev: "Trabajo anterior", next: "Trabajo siguiente" },
+  intro: { skip: "Saltar intro" },
 };
 
 export const dictionaries: Record<Locale, Dict> = { en, pt, es };
