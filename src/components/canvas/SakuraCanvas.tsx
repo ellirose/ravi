@@ -78,8 +78,13 @@ export function SakuraCanvas({ className = "", density = 1 }: { className?: stri
     };
 
     const step = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
+      const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
       last = now;
+      // Hidden under the intro overlay: keep the loop alive but skip the work.
+      if (document.documentElement.getAttribute("data-intro") === "playing") {
+        if (running) raf = requestAnimationFrame(step);
+        return;
+      }
       ctx.clearRect(0, 0, w, h);
       wind += (Math.sin(now / 3200) * 14 - wind) * 0.02;
       pointer.vx *= 0.92;
