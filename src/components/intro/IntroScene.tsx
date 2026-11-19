@@ -8,9 +8,9 @@ import { runIntro } from "./engine";
 /**
  * First-render intro. The overlay is in the server HTML (shown only while
  * <html data-intro="playing">, set by the boot script), so the page never
- * flashes before it. Particles wander, then converge into the sakura + seal
- * emblem once fonts and the hero portrait are ready; the page is revealed the
- * moment the emblem fully manifests.
+ * flashes before it. Electric sparks wander, then converge into the
+ * Fuji + sakura + seal mark once fonts and the hero portrait are ready; the page is revealed the
+ * moment the mark fully manifests.
  */
 export function IntroScene() {
   const { t } = useI18n();
@@ -64,7 +64,7 @@ export function IntroScene() {
     <>
       <div className="intro-root fixed inset-0 z-[100] bg-washi" aria-hidden>
         {/* Shown before hydration: a quiet seal that the particles take over from */}
-        <div className="intro-placeholder absolute top-[44%] left-1/2 size-16 -translate-x-1/2 -translate-y-1/2">
+        <div className="intro-placeholder absolute top-[42%] left-1/2 size-16 -translate-x-1/2 -translate-y-1/2">
           <svg viewBox="0 0 64 64" className="size-full animate-pulse">
             <rect x="3" y="3" width="58" height="58" rx="14" fill="#e04a3c" />
             <path

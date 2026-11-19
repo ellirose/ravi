@@ -1,25 +1,31 @@
-import { drawCaption, drawEmblem, emblemGeometry, PALETTE, sampleTargets, type EmblemGeo, type Region } from "./emblem";
+import {
+  compositeArt, DARK, DEPTH, drawCaption, emblemGeometry, FRAME_DEPTH, HALO, PALETTE, REGIONS, renderArtLayers,
+  sampleTargets, UNDER, type ArtLayers, type EmblemGeo, type Region,
+} from "./emblem";
 
 /*
  * Intro choreography (ms):
  *   wander    ≥ MIN_WANDER, until the page is ready (capped by MAX_WAIT)
- *             Brownian motion (Ornstein–Uhlenbeck velocity + a slow flow
- *             field) leaves fading ink trails.
- *   converge  CONVERGE — each particle eases onto its target along a swirl;
- *             petals bloom in a rotating sweep, then the seal, then 桜.
- *   manifest  ART_FADE — crisp artwork fades in under the particles, ripple,
- *             caption. When it completes the site is revealed (onReveal).
- *   exit      the iris opens from the flower's heart onto the page while a
- *             paper "moon" holds the finished emblem for HOLD, then the
- *             blossom scatters into drifting petals (EXIT).
+ *             Charged sparks drift in Brownian motion (Ornstein–Uhlenbeck
+ *             velocity + a slow flow field), trailing light; lightning arcs
+ *             flicker between neighbours.
+ *   converge  CONVERGE — each spark eases onto its target along a swirl: the
+ *             sun ignites, snow pours down Fuji, the frame closes in a sweep,
+ *             then the blossom and the seal. Arcs knit the arrived sparks.
+ *   manifest  ART_FADE — a charge burst runs through the form and the lit 3D
+ *             mark powers on beneath it, starting a gentle parallax sway.
+ *             When it completes the site is revealed (onReveal).
+ *   exit      the iris opens onto the page while a paper "moon" holds the
+ *             mark for HOLD, then the sparks scatter and fade (EXIT).
  */
 const MIN_WANDER = 1500;
 const MAX_WAIT = 4500;
 const CONVERGE = 2700;
-const ART_FADE = 450;
-const HOLD = 1100;
+const ART_FADE = 520;
+const HOLD = 1200;
 const EXIT = 1700;
 const BG = "251, 247, 240"; // --color-washi
+const ARC_COLORS = ["#2f6bff", "#4d8dff", "#2f6bff", "#ff4f98", "#ff3b30", "#7aa8ff"];
 
 export type IntroOptions = {
   isReady: () => boolean;
@@ -38,6 +44,8 @@ function gauss() {
   const v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
+
+type Arc = { i: number; j: number; born: number; life: number; color: string; fork: boolean };
 
 export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
   const ctx = canvas.getContext("2d")!;
@@ -64,18 +72,20 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
   const vx = new Float32Array(n), vy = new Float32Array(n);
   const tx = new Float32Array(n), ty = new Float32Array(n);
   const delay = new Float32Array(n), swirl = new Float32Array(n), life = new Float32Array(n);
+  const arrived = new Float32Array(n);
   const region: Region[] = initial.map((p) => p.region);
+  const depth = Float32Array.from(region, (r) => DEPTH[r] - FRAME_DEPTH);
 
   // Colour + size buckets so each frame is a few dozen strokes, not thousands.
-  const colors: string[] = [];
+  type Style = { color: string; width: number; halo: string; under: string | null; core: boolean };
+  const keys: string[] = [];
+  REGIONS.forEach((r) => PALETTE[r].forEach((c) => keys.push(`${r}|${c}`)));
   const colorOf = new Uint16Array(n);
   const sizeOf = new Uint8Array(n);
-  (Object.keys(PALETTE) as Region[]).forEach((r) => PALETTE[r].forEach((c) => colors.push(`${r}|${c}`)));
   for (let i = 0; i < n; i++) {
     const pal = PALETTE[region[i]];
-    const c = pal[Math.floor(Math.random() * pal.length)];
-    colorOf[i] = colors.indexOf(`${region[i]}|${c}`);
-    sizeOf[i] = Math.random() < (region[i] === "petal" ? 0.3 : 0.45) ? 1 : 0;
+    colorOf[i] = keys.indexOf(`${region[i]}|${pal[Math.floor(Math.random() * pal.length)]}`);
+    sizeOf[i] = Math.random() < (region[i] === "fuji" || region[i] === "sakura" ? 0.3 : 0.45) ? 1 : 0;
     x[i] = fx[i] = px[i] = Math.random() * w;
     y[i] = fy[i] = py[i] = Math.random() * h;
     const a = Math.random() * Math.PI * 2;
@@ -83,60 +93,74 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
     vy[i] = Math.sin(a) * 60;
   }
   const buckets: Int32Array[] = [];
-  const bucketStyle: { color: string; width: number }[] = [];
-  colors.forEach((key, ci) => {
+  const styles: Style[] = [];
+  keys.forEach((key, ci) => {
+    const [reg, color] = key.split("|") as [Region, string];
     [0, 1].forEach((s) => {
       const idx: number[] = [];
       for (let i = 0; i < n; i++) if (colorOf[i] === ci && sizeOf[i] === s) idx.push(i);
-      if (idx.length) {
-        buckets.push(Int32Array.from(idx));
-        bucketStyle.push({ color: key.split("|")[1], width: s ? 2.5 : 1.4 });
-      }
+      if (!idx.length) return;
+      buckets.push(Int32Array.from(idx));
+      styles.push({ color, width: s ? 2.4 : 1.35, halo: HALO[reg], under: UNDER[reg] ?? null, core: !DARK[reg] });
     });
   });
 
+  /* Spatial hash over the targets, for picking neighbours to arc between. */
+  const CELL = 44;
+  let grid = new Map<number, number[]>();
+  const cellKey = (X: number, Y: number) => Math.floor(X / CELL) + Math.floor(Y / CELL) * 4096;
+  const buildGrid = () => {
+    grid = new Map();
+    for (let i = 0; i < n; i++) {
+      const k = cellKey(tx[i], ty[i]);
+      const list = grid.get(k);
+      if (list) list.push(i);
+      else grid.set(k, [i]);
+    }
+  };
+
   const assignTargets = () => {
     const pts = sampleTargets(geo, n, Math.random);
-    const byRegion: Record<Region, { x: number; y: number }[]> = { petal: [], seal: [], stamen: [], kanji: [] };
+    const byRegion = Object.fromEntries(REGIONS.map((r) => [r, [] as { x: number; y: number }[]])) as Record<Region, { x: number; y: number }[]>;
     pts.forEach((p) => byRegion[p.region].push(p));
-    (Object.keys(byRegion) as Region[]).forEach((r) => {
+    REGIONS.forEach((r) => {
       const list = byRegion[r];
       for (let i = list.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [list[i], list[j]] = [list[j], list[i]];
       }
     });
-    const used: Record<Region, number> = { petal: 0, seal: 0, stamen: 0, kanji: 0 };
+    const used = Object.fromEntries(REGIONS.map((r) => [r, 0])) as Record<Region, number>;
+    const peak = geo.cy - geo.R * 0.38;
     for (let i = 0; i < n; i++) {
-      const list = byRegion[region[i]];
+      const r = region[i];
+      const list = byRegion[r];
       if (!list.length) { tx[i] = geo.cx; ty[i] = geo.cy; continue; }
-      const k = used[region[i]]++;
+      const k = used[r]++;
       const p = list[k % list.length];
       // If a region has fewer points than particles, overlap with a hair of offset.
       const extra = k >= list.length ? 0.8 : 0;
       tx[i] = p.x + (Math.random() - 0.5) * extra;
       ty[i] = p.y + (Math.random() - 0.5) * extra;
-      // Arrival order: petals sweep around the flower, then seal, then kanji.
+      // Arrival order: sun ignites, snow pours down the mountain, the frame
+      // closes in a sweep, then the blossom and the seal land in front.
       const ang = (Math.atan2(ty[i] - geo.cy, tx[i] - geo.cx) + Math.PI) / (Math.PI * 2);
+      const fall = clamp01((ty[i] - peak) / (geo.R * 1.1));
       delay[i] =
-        region[i] === "petal" ? ang * 0.24 + Math.random() * 0.06
-        : region[i] === "stamen" ? 0.22 + Math.random() * 0.06
-        : region[i] === "seal" ? 0.26 + Math.random() * 0.08
-        : 0.32 + Math.random() * 0.08;
+        r === "sun" ? Math.random() * 0.06
+        : r === "snow" || r === "fuji" ? 0.04 + fall * 0.16 + Math.random() * 0.04
+        : r === "ring" ? 0.1 + ang * 0.2 + Math.random() * 0.03
+        : r === "seal" ? 0.3 + Math.random() * 0.08
+        : r === "sakura" ? 0.25 + Math.random() * 0.07
+        : 0.31 + Math.random() * 0.06;
       swirl[i] = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.7);
     }
+    buildGrid();
   };
 
-  /* ── Crisp artwork, prerendered once ─────────────────────────────────── */
-  let art: HTMLCanvasElement | null = null;
-  const renderArt = () => {
-    art = document.createElement("canvas");
-    art.width = canvas.width;
-    art.height = canvas.height;
-    const a = art.getContext("2d")!;
-    a.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawEmblem(a, geo, "art");
-  };
+  /* ── Lit 3D artwork, prerendered once as depth layers ────────────────── */
+  let art: ArtLayers | null = null;
+  const renderArt = () => { art = renderArtLayers(geo, dpr); };
 
   /* ── Timeline ─────────────────────────────────────────────────────────── */
   type Phase = "wander" | "converge" | "manifest" | "exit" | "done";
@@ -151,33 +175,23 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
     tManifest = t0;
   }
 
+  /** Camera sway once the mark has formed: drives the depth parallax. */
+  const camera = (now: number) => {
+    if (opts.reduced || !tManifest) return { x: 0, y: 0 };
+    const s = (now - tManifest) / 1000;
+    const A = geo.R * 0.08 * easeOut(clamp01(s / 1.2));
+    return { x: A * Math.sin(s * 1.3), y: A * 0.55 * Math.sin(s * 0.95 + 0.4) };
+  };
+
   const flowAngle = (X: number, Y: number, t: number) =>
     Math.sin(X * 0.0021 + t * 0.00031) * 2.1 + Math.cos(Y * 0.0027 - t * 0.00023) * 1.9 + Math.sin((X + Y) * 0.0011 + t * 0.00017) * 1.3;
 
   const brownian = (i: number, dt: number, t: number, amp: number) => {
     const a = flowAngle(fx[i], fy[i], t);
-    vx[i] += (Math.cos(a) * 72 - vx[i]) * 1.2 * dt + gauss() * 110 * amp * Math.sqrt(dt);
-    vy[i] += (Math.sin(a) * 72 - vy[i]) * 1.2 * dt + gauss() * 110 * amp * Math.sqrt(dt);
+    vx[i] += (Math.cos(a) * 78 - vx[i]) * 1.2 * dt + gauss() * 120 * amp * Math.sqrt(dt);
+    vy[i] += (Math.sin(a) * 78 - vy[i]) * 1.2 * dt + gauss() * 120 * amp * Math.sqrt(dt);
     fx[i] += vx[i] * dt;
     fy[i] += vy[i] * dt;
-  };
-
-  const strokeBuckets = (alphaMul = 1) => {
-    ctx.lineCap = "round";
-    for (let b = 0; b < buckets.length; b++) {
-      const idx = buckets[b];
-      ctx.strokeStyle = bucketStyle[b].color;
-      ctx.lineWidth = bucketStyle[b].width;
-      ctx.globalAlpha = alphaMul;
-      ctx.beginPath();
-      for (let k = 0; k < idx.length; k++) {
-        const i = idx[k];
-        ctx.moveTo(px[i], py[i]);
-        ctx.lineTo(x[i], y[i]);
-      }
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
   };
 
   /* Trails: a short ring buffer of past positions per particle, redrawn each
@@ -205,44 +219,210 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
       const sOld = (head - 1 - (age + 1) + K * 2) % K;
       for (let b = 0; b < buckets.length; b++) {
         const idx = buckets[b];
-        ctx.strokeStyle = bucketStyle[b].color;
-        ctx.lineWidth = bucketStyle[b].width * (0.55 + 0.45 * fade);
-        ctx.globalAlpha = alphaMul * fade;
-        ctx.beginPath();
+        const st = styles[b];
+        const path = new Path2D();
         for (let k = 0; k < idx.length; k++) {
           const i = idx[k];
           const o = i * K;
           const ax = hx[o + sOld], ay = hy[o + sOld];
           const bx = sNew < 0 ? x[i] : hx[o + sNew], by = sNew < 0 ? y[i] : hy[o + sNew];
           if ((bx - ax) * (bx - ax) + (by - ay) * (by - ay) > max2) continue; // no long straight streaks
-          ctx.moveTo(ax, ay);
-          ctx.lineTo(bx, by);
+          path.moveTo(ax, ay);
+          path.lineTo(bx, by);
         }
-        ctx.stroke();
+        const lw = st.width * (0.5 + 0.5 * fade);
+        if (st.under) {
+          ctx.strokeStyle = st.under;
+          ctx.globalAlpha = alphaMul * fade * 0.75;
+          ctx.lineWidth = lw + 1.4;
+          ctx.stroke(path);
+        }
+        ctx.strokeStyle = st.color;
+        ctx.globalAlpha = alphaMul * fade;
+        ctx.lineWidth = lw;
+        ctx.stroke(path);
       }
     }
     ctx.globalAlpha = 1;
   };
 
-  const ripple = (tm: number) => {
-    const rings: [number, string][] = [[0, "224, 74, 60"], [180, "193, 154, 78"]];
+  /* Spark heads: a coloured charge glow with a white-hot core that flickers. */
+  const HEAD = 9;
+  const strokeHeads = (alphaMul: number, glow = 1) => {
+    ctx.lineCap = "round";
+    for (let b = 0; b < buckets.length; b++) {
+      const idx = buckets[b];
+      const st = styles[b];
+      const path = new Path2D();
+      for (let k = 0; k < idx.length; k++) {
+        const i = idx[k];
+        // Clamp to a short spark: fast frames must not draw long straight lines.
+        let ax = px[i], ay = py[i];
+        const dx = x[i] - ax, dy = y[i] - ay;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > HEAD * HEAD) {
+          const s = HEAD / Math.sqrt(d2);
+          ax = x[i] - dx * s;
+          ay = y[i] - dy * s;
+        }
+        path.moveTo(ax, ay);
+        path.lineTo(x[i] + 0.01, y[i]);
+      }
+      const fl = 0.6 + Math.random() * 0.4;
+      // Charge glow only on the larger sparks — wide strokes are the costly part.
+      if (st.width > 2 && glow > 0) {
+        ctx.strokeStyle = st.halo;
+        ctx.globalAlpha = alphaMul * 0.24 * fl * glow;
+        ctx.lineWidth = st.width * 3;
+        ctx.stroke(path);
+      }
+      ctx.strokeStyle = st.color;
+      ctx.globalAlpha = alphaMul;
+      ctx.lineWidth = st.width * 1.1;
+      ctx.stroke(path);
+      if (st.core) {
+        ctx.strokeStyle = "#ffffff";
+        ctx.globalAlpha = alphaMul * fl;
+        ctx.lineWidth = st.width * 0.45;
+        ctx.stroke(path);
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  /* ── Lightning arcs ───────────────────────────────────────────────────── */
+  const arcs: Arc[] = [];
+  const pts: number[] = [];
+  const bolt = (ax: number, ay: number, bx: number, by: number, levels: number, rough: number) => {
+    pts.length = 0;
+    pts.push(ax, ay, bx, by);
+    for (let l = 0; l < levels; l++) {
+      const next: number[] = [];
+      for (let k = 0; k < pts.length - 2; k += 2) {
+        const x1 = pts[k], y1 = pts[k + 1], x2 = pts[k + 2], y2 = pts[k + 3];
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.hypot(dx, dy) || 1;
+        const off = (Math.random() * 2 - 1) * len * rough;
+        next.push(x1, y1, (x1 + x2) / 2 - (dy / len) * off, (y1 + y2) / 2 + (dx / len) * off);
+      }
+      next.push(pts[pts.length - 2], pts[pts.length - 1]);
+      pts.length = 0;
+      pts.push(...next);
+    }
+    return pts;
+  };
+  const addPolyline = (p: Path2D, a: number[]) => {
+    p.moveTo(a[0], a[1]);
+    for (let k = 2; k < a.length; k += 2) p.lineTo(a[k], a[k + 1]);
+  };
+  const spawnArc = (i: number, j: number, now: number, lifeMs = 120 + Math.random() * 180) => {
+    const c = region[i] === "sakura" || region[i] === "core" || region[i] === "stamen" ? "#ff4f98"
+      : region[i] === "sun" || region[i] === "seal" ? "#ff3b30"
+      : ARC_COLORS[Math.floor(Math.random() * ARC_COLORS.length)];
+    arcs.push({ i, j, born: now, life: lifeMs, color: c, fork: Math.random() < 0.4 });
+  };
+  /** A random neighbour of i in free space (wander) — rejection sampling. */
+  const freeNeighbour = (i: number) => {
+    for (let a = 0; a < 22; a++) {
+      const j = Math.floor(Math.random() * n);
+      const d2 = (x[j] - x[i]) ** 2 + (y[j] - y[i]) ** 2;
+      if (j !== i && d2 > 900 && d2 < 14400) return j;
+    }
+    return -1;
+  };
+  /** A neighbour of i on the formed shape — via the target grid. */
+  const shapeNeighbour = (i: number, minD = 10, maxD = 64) => {
+    const gx = Math.floor(tx[i] / CELL), gy = Math.floor(ty[i] / CELL);
+    for (let a = 0; a < 6; a++) {
+      const list = grid.get(gx + Math.floor(Math.random() * 3 - 1) + (gy + Math.floor(Math.random() * 3 - 1)) * 4096);
+      if (!list) continue;
+      const j = list[Math.floor(Math.random() * list.length)];
+      const d = Math.hypot(tx[j] - tx[i], ty[j] - ty[i]);
+      if (j !== i && d > minD && d < maxD && arrived[j] > 0.85) return j;
+    }
+    return -1;
+  };
+  const drawArcs = (now: number, alphaMul = 1) => {
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (let a = arcs.length - 1; a >= 0; a--) {
+      const arc = arcs[a];
+      const age = (now - arc.born) / arc.life;
+      if (age >= 1) { arcs.splice(a, 1); continue; }
+      const { i, j } = arc;
+      const len = Math.hypot(x[j] - x[i], y[j] - y[i]);
+      if (len > 180) { arcs.splice(a, 1); continue; }
+      const path = new Path2D();
+      const main = bolt(x[i], y[i], x[j], y[j], 4, 0.26);
+      addPolyline(path, main);
+      if (arc.fork) {
+        const m = Math.floor(main.length / 4) * 2;
+        const ang = Math.atan2(y[j] - y[i], x[j] - x[i]) + (Math.random() < 0.5 ? -0.7 : 0.7);
+        const fl = len * (0.3 + Math.random() * 0.25);
+        const sx = main[m], sy = main[m + 1];
+        addPolyline(path, bolt(sx, sy, sx + Math.cos(ang) * fl, sy + Math.sin(ang) * fl, 3, 0.3).slice());
+      }
+      const fade = (1 - age) * (0.55 + Math.random() * 0.45) * alphaMul;
+      ctx.strokeStyle = arc.color;
+      ctx.globalAlpha = 0.16 * fade;
+      ctx.lineWidth = 5;
+      ctx.stroke(path);
+      ctx.globalAlpha = 0.85 * fade;
+      ctx.lineWidth = 1.5;
+      ctx.stroke(path);
+      ctx.strokeStyle = "#ffffff";
+      ctx.globalAlpha = fade;
+      ctx.lineWidth = 0.6;
+      ctx.stroke(path);
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  /* ── Power-on: charge ripple + a soft bloom behind the mark ──────────── */
+  const powerOn = (tm: number) => {
+    const bp = clamp01(tm / 600);
+    if (bp < 1) {
+      const g = ctx.createRadialGradient(geo.cx, geo.cy, 0, geo.cx, geo.cy, geo.R * 1.6);
+      g.addColorStop(0, `rgba(120, 165, 255, ${0.3 * (1 - bp)})`);
+      g.addColorStop(0.6, `rgba(255, 130, 180, ${0.12 * (1 - bp)})`);
+      g.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(geo.cx - geo.R * 1.6, geo.cy - geo.R * 1.6, geo.R * 3.2, geo.R * 3.2);
+    }
+    const rings: [number, string][] = [[0, "47, 107, 255"], [160, "255, 79, 152"], [320, "255, 59, 48"]];
     for (const [d, col] of rings) {
-      const p = clamp01((tm - d) / 1300);
+      const p = clamp01((tm - d) / 1100);
       if (p <= 0 || p >= 1) continue;
-      ctx.strokeStyle = `rgba(${col}, ${0.35 * (1 - p)})`;
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = `rgba(${col}, ${0.38 * (1 - p) * (1 - p)})`;
+      ctx.lineWidth = 1.8 * (1 - p) + 0.6;
       ctx.beginPath();
-      ctx.arc(geo.cx, geo.cy, geo.R * (0.4 + easeOut(p) * 1.3), 0, Math.PI * 2);
+      ctx.arc(geo.cx, geo.cy, geo.R * (1.02 + easeOut(p) * 0.3), 0, Math.PI * 2);
       ctx.stroke();
     }
   };
 
-  let hold = 0; // how long the finished emblem stays intact after the reveal
+  /** Settled sparks, offset by depth so they ride the parallax with the art. */
+  const settle = (now: number, o: { x: number; y: number }) => {
+    for (let i = 0; i < n; i++) {
+      px[i] = x[i] = tx[i] + depth[i] * o.x + Math.sin(now * 0.004 + i) * 0.35;
+      py[i] = y[i] = ty[i] + depth[i] * o.y + Math.cos(now * 0.0035 + i * 1.7) * 0.35;
+    }
+  };
+  const crawl = (now: number, rate: number) => {
+    if (arcs.length < 8 && Math.random() < rate) {
+      const i = Math.floor(Math.random() * n);
+      const j = shapeNeighbour(i, 8, 46);
+      if (j >= 0) spawnArc(i, j, now, 90 + Math.random() * 130);
+    }
+  };
+
+  let hold = 0; // how long the finished mark stays intact after the reveal
   let burst = false;
   const scatter = () => {
     burst = true;
+    arcs.length = 0;
     for (let i = 0; i < n; i++) {
-      // Petals are blown outward from the heart of the flower, with a breeze.
+      // Sparks are thrown outward from the heart of the mark, with a breeze.
       const dx = x[i] - geo.cx, dy = y[i] - geo.cy;
       const d = Math.hypot(dx, dy) || 1;
       const s = (90 + Math.random() * 260) * (0.6 + Math.min(1.6, d / geo.R));
@@ -256,7 +436,7 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
 
   const startExit = (now: number) => {
     if (phase === "exit" || phase === "done") return;
-    // Skipped before the form completed: no emblem to hold, burst straight away.
+    // Skipped before the form completed: no mark to hold, burst straight away.
     hold = phase === "manifest" && !opts.reduced ? HOLD : 0;
     if (!art) renderArt();
     if (!revealed) { revealed = true; opts.onReveal(); }
@@ -278,6 +458,7 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
         assignTargets();
         phase = "converge";
         tConverge = now;
+        arcs.length = 0;
       }
       const cp = phase === "converge" ? clamp01((now - tConverge) / CONVERGE) : 0;
       ctx.fillStyle = `rgb(${BG})`;
@@ -296,9 +477,10 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
           else if (fy[i] > h + 20) { fy[i] = -20; wrapped = true; }
           x[i] = fx[i];
           y[i] = fy[i];
-          if (wrapped) resetTrail(i);
+          if (wrapped) { resetTrail(i); px[i] = x[i]; py[i] = y[i]; }
         } else {
           const e = easeInOut(clamp01((cp - delay[i]) / 0.6));
+          arrived[i] = e;
           const rot = swirl[i] * (1 - e) * (1 - e);
           const dx = tx[i] - geo.cx, dy = ty[i] - geo.cy;
           const rx = geo.cx + dx * Math.cos(rot) - dy * Math.sin(rot);
@@ -308,49 +490,69 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
         }
       }
       if (phase === "converge") {
-        // Converging particles move fast: sample every frame and keep only a
+        // Converging sparks move fast: sample every frame and keep only a
         // short comet tail so the paths read as curves, not string-art lines.
         pushTrail();
-        strokeTrails(1, Math.max(2, Math.round(7 - cp * 4)), 60);
+        strokeTrails(1, Math.max(2, Math.round(7 - cp * 4)), 36);
+        strokeHeads(1, 1 - cp * 0.4);
+        // Arcs begin to knit the sparks that have landed.
+        const tries = cp < 0.35 ? 0 : 1 + Math.round(cp * 4);
+        for (let a = 0; a < tries && arcs.length < 34; a++) {
+          const i = Math.floor(Math.random() * n);
+          if (arrived[i] < 0.85) continue;
+          const j = shapeNeighbour(i);
+          if (j >= 0) spawnArc(i, j, now);
+        }
       } else {
         if (frameNo++ % 2 === 0) pushTrail();
-        strokeTrails(Math.min(1, t / 700));
+        const fadeIn = Math.min(1, t / 700);
+        strokeTrails(fadeIn);
+        strokeHeads(fadeIn);
+        for (let a = 0; a < 3 && arcs.length < 22; a++) {
+          if (Math.random() > 0.5 || t < 400) continue;
+          const i = Math.floor(Math.random() * n);
+          const j = freeNeighbour(i);
+          if (j >= 0) spawnArc(i, j, now);
+        }
       }
+      drawArcs(now);
       if (phase === "converge" && cp >= 1) {
         renderArt();
         phase = "manifest";
         tManifest = now;
+        // Charge burst: the whole form lights up at once.
+        for (let a = 0; a < 48; a++) {
+          const i = Math.floor(Math.random() * n);
+          const j = shapeNeighbour(i, 14, 80);
+          if (j >= 0) spawnArc(i, j, now, 180 + Math.random() * 260);
+        }
       }
     } else if (phase === "manifest") {
       const tm = now - tManifest;
       const a = easeOut(clamp01(tm / ART_FADE));
+      const o = camera(now);
       ctx.fillStyle = `rgb(${BG})`;
       ctx.fillRect(0, 0, w, h);
-      if (art) {
-        ctx.globalAlpha = a;
-        ctx.drawImage(art, 0, 0, w, h);
-        ctx.globalAlpha = 1;
-      }
+      if (!opts.reduced) powerOn(tm);
+      if (art) compositeArt(ctx, art, o, a);
       if (!opts.reduced) {
-        // Particles settle into a gentle shimmer over the artwork.
-        for (let i = 0; i < n; i++) {
-          const tw = Math.sin(now * 0.004 + i) * 0.35;
-          px[i] = x[i] = tx[i] + tw;
-          py[i] = y[i] = ty[i] + Math.cos(now * 0.0035 + i * 1.7) * 0.35;
-        }
-        strokeBuckets(1 - 0.45 * a);
-        ripple(tm);
+        // Sparks settle into a shimmer over the lit mark and dim as it powers on.
+        settle(now, o);
+        strokeHeads(1 - 0.7 * a, 1 - a);
+        crawl(now, 0.4);
+        drawArcs(now);
       }
       drawCaption(ctx, geo, opts.subtitle(), a);
       if (tm >= ART_FADE + (opts.reduced ? 650 : 0)) startExit(now);
     } else if (phase === "exit") {
       const te = now - tExit;
-      const tb = te - hold; // time since the blossom let go (negative while holding)
+      const tb = te - hold; // time since the sparks let go (negative while holding)
       const dur = opts.reduced ? 700 : hold + EXIT;
       const p = clamp01(te / dur);
+      const o = camera(now);
       if (!burst && !opts.reduced && tb >= 0) scatter();
       ctx.clearRect(0, 0, w, h);
-      // Paper with a feathered iris opening from the flower's heart onto the site.
+      // Paper with a feathered iris opening from the mark's heart onto the site.
       ctx.fillStyle = `rgb(${BG})`;
       ctx.fillRect(0, 0, w, h);
       const irisDur = opts.reduced ? 700 : 1500;
@@ -369,11 +571,11 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
         ctx.fill();
       }
       ctx.globalCompositeOperation = "source-over";
-      // A paper "moon" keeps the finished emblem legible while the page opens
-      // around it, then dissolves as the blossom scatters.
+      // A paper "moon" keeps the finished mark legible while the page opens
+      // around it, then dissolves as the sparks scatter.
       const moonA = opts.reduced ? 1 - ip : 1 - easeOut(clamp01(tb / 700));
       if (moonA > 0) {
-        const mcx = geo.cx, mcy = geo.cy + geo.R * 0.32, mr = geo.R * 1.95;
+        const mcx = geo.cx, mcy = geo.cy + geo.R * 0.3, mr = geo.R * 2.05;
         const g = ctx.createRadialGradient(mcx, mcy, mr * 0.72, mcx, mcy, mr);
         g.addColorStop(0, `rgba(${BG}, ${moonA})`);
         g.addColorStop(1, `rgba(${BG}, 0)`);
@@ -382,22 +584,16 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
         ctx.arc(mcx, mcy, mr, 0, Math.PI * 2);
         ctx.fill();
       }
-      // Artwork lets go first, leaving the particles to carry the shape away.
+      // Artwork lets go first, leaving the sparks to carry the shape away.
       const artA = opts.reduced ? 1 - ip : 1 - easeOut(clamp01(tb / 380));
-      if (art && artA > 0) {
-        ctx.globalAlpha = artA;
-        ctx.drawImage(art, 0, 0, w, h);
-        ctx.globalAlpha = 1;
-      }
+      if (art) compositeArt(ctx, art, o, artA);
       drawCaption(ctx, geo, opts.subtitle(), opts.reduced ? 1 - ip : 1 - easeOut(clamp01(tb / 420)));
       if (!opts.reduced && !burst) {
-        // Holding: the settled particles keep shimmering over the artwork.
-        for (let i = 0; i < n; i++) {
-          px[i] = x[i] = tx[i] + Math.sin(now * 0.004 + i) * 0.35;
-          py[i] = y[i] = ty[i] + Math.cos(now * 0.0035 + i * 1.7) * 0.35;
-        }
-        strokeBuckets(0.55);
-        ripple(now - tManifest);
+        // Holding: faint sparks keep shimmering over the mark, arcs crawl.
+        settle(now, o);
+        strokeHeads(0.3, 0);
+        crawl(now, 0.3 * (1 - clamp01(te / hold)));
+        drawArcs(now, 0.8);
       } else if (!opts.reduced) {
         const td = Math.max(0, tb);
         const bd = EXIT;
@@ -412,22 +608,31 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
           x[i] = fx[i];
           y[i] = fy[i];
         }
-        // Fade petals individually by their life span.
+        // Fade sparks individually by their life span.
         ctx.lineCap = "round";
         for (let b = 0; b < buckets.length; b++) {
           const idx = buckets[b];
-          ctx.strokeStyle = bucketStyle[b].color;
-          ctx.lineWidth = bucketStyle[b].width * 1.15;
+          const st = styles[b];
           for (const tier of [0, 1]) {
-            ctx.globalAlpha = Math.max(0, 1 - td / (bd * (tier ? 1.05 : 0.8)));
-            ctx.beginPath();
+            const alpha = Math.max(0, 1 - td / (bd * (tier ? 1.05 : 0.8)));
+            if (alpha <= 0) continue;
+            const path = new Path2D();
             for (let k = tier; k < idx.length; k += 2) {
               const i = idx[k];
               if (td / bd > life[i]) continue;
-              ctx.moveTo(px[i], py[i]);
-              ctx.lineTo(x[i], y[i]);
+              path.moveTo(px[i], py[i]);
+              path.lineTo(x[i], y[i]);
             }
-            ctx.stroke();
+            if (st.under) {
+              ctx.strokeStyle = st.under;
+              ctx.globalAlpha = alpha * 0.7;
+              ctx.lineWidth = st.width * 1.15 + 1.4;
+              ctx.stroke(path);
+            }
+            ctx.strokeStyle = st.color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = st.width * 1.15;
+            ctx.stroke(path);
           }
         }
         ctx.globalAlpha = 1;
@@ -450,6 +655,7 @@ export function runIntro(canvas: HTMLCanvasElement, opts: IntroOptions) {
       tx[i] = geo.cx + (tx[i] - old.cx) * k;
       ty[i] = geo.cy + (ty[i] - old.cy) * k;
     }
+    buildGrid();
     if (art) renderArt();
   };
   window.addEventListener("resize", onResize);
