@@ -20,7 +20,7 @@ function ToriiIcon({ className = "" }: { className?: string }) {
 export function Footer() {
   const { t } = useI18n();
   const labels: Record<(typeof sectionIds)[number], string> = {
-    about: t.nav.about, collection: t.nav.collection, works: t.nav.works, motion: t.nav.motion, experience: t.nav.experience, toolkit: t.nav.toolkit,
+    about: t.nav.about, collection: t.nav.collection, works: t.nav.works, motion: t.nav.motion, studio: t.nav.studio, experience: t.nav.experience, toolkit: t.nav.toolkit,
   };
   return (
     <footer className="tex tex-wood relative overflow-hidden bg-hinoki/60">

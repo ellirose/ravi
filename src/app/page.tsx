@@ -9,6 +9,7 @@ import { Impact } from "@/components/sections/Impact";
 import { JapanCollection } from "@/components/sections/JapanCollection";
 import { Motion } from "@/components/sections/Motion";
 import { Projects } from "@/components/sections/Projects";
+import { Studio } from "@/components/sections/Studio";
 import { Toolkit } from "@/components/sections/Toolkit";
 import { Works } from "@/components/sections/Works";
 
@@ -24,6 +25,7 @@ export default function Home() {
         <JapanCollection />
         <Works />
         <Motion />
+        <Studio />
         <Experience />
         <Projects />
         <Toolkit />

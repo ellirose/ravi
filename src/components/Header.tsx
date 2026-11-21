@@ -6,8 +6,8 @@ import { Logo } from "./Logo";
 import { LanguageFlags, LanguageSwitcher } from "./LanguageSwitcher";
 import { useI18n } from "@/i18n/LanguageProvider";
 
-export const sectionIds = ["about", "collection", "works", "motion", "experience", "toolkit"] as const;
-const kanjiNumerals = ["一", "二", "三", "四", "五", "六"];
+export const sectionIds = ["about", "collection", "works", "motion", "studio", "experience", "toolkit"] as const;
+const kanjiNumerals = ["一", "二", "三", "四", "五", "六", "七"];
 
 export function Header() {
   const { t } = useI18n();
@@ -23,6 +23,7 @@ export function Header() {
     collection: t.nav.collection,
     works: t.nav.works,
     motion: t.nav.motion,
+    studio: t.nav.studio,
     experience: t.nav.experience,
     toolkit: t.nav.toolkit,
   };

@@ -1,3 +1,5 @@
+import type { ReelCategory } from "@/data/reels";
+
 export const locales = ["en", "pt", "es"] as const;
 export type Locale = (typeof locales)[number];
 
@@ -10,7 +12,7 @@ export const localeMeta: Record<Locale, { label: string; short: string; htmlLang
 type Role = { role: string; company: string; place: string; period: string; bullets: string[] };
 
 export type Dict = {
-  nav: { home: string; about: string; collection: string; works: string; motion: string; experience: string; toolkit: string; menu: string; close: string; language: string; cta: string };
+  nav: { home: string; about: string; collection: string; works: string; motion: string; studio: string; experience: string; toolkit: string; menu: string; close: string; language: string; cta: string };
   hero: {
     kicker: string; titleA: string; titleHighlight: string; titleB: string; lead: string;
     ctaWorks: string; ctaAbout: string; disciplines: [string, string, string];
@@ -24,6 +26,15 @@ export type Dict = {
     filters: Record<"all" | "web" | "mobile" | "concept" | "logo" | "type" | "branding" | "marketing" | "apparel", string>;
   };
   motion: { eyebrow: string; title: string; body: string; services: string[]; play: string; pause: string; reel: string; stat: string; statLabel: string };
+  studio: {
+    eyebrow: string; title: string; body: string;
+    stats: { value: string; label: string }[];
+    screening: string; play: string; pause: string; prev: string; next: string;
+    timeline: string; clip: string;
+    filters: Record<"all" | ReelCategory, string>;
+    vertical: string; wide: string; watch: string; close: string; seconds: string;
+    processTitle: string; process: { title: string; body: string }[];
+  };
   experience: { eyebrow: string; title: string; roles: Role[] };
   projects: { eyebrow: string; title: string; items: { year: string; title: string; body: string; metric: string; metricLabel: string }[] };
   toolkit: {
@@ -47,7 +58,7 @@ const toolsEn = [
 ];
 
 const en: Dict = {
-  nav: { home: "Home", about: "About", collection: "Japan", works: "Works", motion: "Motion", experience: "Journey", toolkit: "Toolkit", menu: "Menu", close: "Close", language: "Language", cta: "View works" },
+  nav: { home: "Home", about: "About", collection: "Japan", works: "Works", motion: "Motion", studio: "AI Studio", experience: "Journey", toolkit: "Toolkit", menu: "Menu", close: "Close", language: "Language", cta: "View works" },
   hero: {
     kicker: "Creative Developer · Tokyo",
     titleA: "Design, motion",
@@ -115,6 +126,32 @@ const en: Dict = {
     reel: "Showreel 2026",
     stat: "100+",
     statLabel: "promotional edits & motion explainers",
+  },
+  studio: {
+    eyebrow: "AI ad studio · 広告",
+    title: "Client commercials, directed with AI.",
+    body: "Twenty-one spots for fashion, food, beauty, jewellery and sport brands — concept, AI direction, edit and grade, delivered for vertical social and widescreen.",
+    stats: [{ value: "21", label: "client spots" }, { value: "7", label: "industries" }, { value: "4K", label: "masters" }],
+    screening: "Now screening",
+    play: "Play showreel",
+    pause: "Pause showreel",
+    prev: "Previous spot",
+    next: "Next spot",
+    timeline: "Edit timeline",
+    clip: "Clip",
+    filters: { all: "All spots", fashion: "Fashion", characters: "AI characters", food: "Food & grocery", beauty: "Beauty & wellness", jewelry: "Jewellery", lifestyle: "Lifestyle", sports: "Sports" },
+    vertical: "9:16 social",
+    wide: "Widescreen",
+    watch: "Watch",
+    close: "Close player",
+    seconds: "s",
+    processTitle: "From brief to broadcast",
+    process: [
+      { title: "Brief & moodboard", body: "Product, audience and channel distilled into one visual idea." },
+      { title: "AI direction", body: "Casting, light, lens and motion — prompted, iterated and art-directed." },
+      { title: "Edit & grade", body: "Cut to rhythm, colour-matched to the brand, finished frame by frame." },
+      { title: "Deliver everywhere", body: "Masters in 4K plus vertical cuts sized for every social placement." },
+    ],
   },
   experience: {
     eyebrow: "Journey · 経歴",
@@ -186,7 +223,7 @@ const en: Dict = {
 };
 
 const pt: Dict = {
-  nav: { home: "Início", about: "Sobre", collection: "Japão", works: "Trabalhos", motion: "Vídeo", experience: "Trajetória", toolkit: "Ferramentas", menu: "Menu", close: "Fechar", language: "Idioma", cta: "Ver trabalhos" },
+  nav: { home: "Início", about: "Sobre", collection: "Japão", works: "Trabalhos", motion: "Vídeo", studio: "Estúdio IA", experience: "Trajetória", toolkit: "Ferramentas", menu: "Menu", close: "Fechar", language: "Idioma", cta: "Ver trabalhos" },
   hero: {
     kicker: "Desenvolvedor Criativo · Tóquio",
     titleA: "Design, vídeo",
@@ -254,6 +291,32 @@ const pt: Dict = {
     reel: "Showreel 2026",
     stat: "100+",
     statLabel: "edições promocionais & explicativos animados",
+  },
+  studio: {
+    eyebrow: "Estúdio de anúncios IA · 広告",
+    title: "Comerciais para clientes, dirigidos com IA.",
+    body: "Vinte e uma peças para marcas de moda, alimentos, beleza, joias e esporte — conceito, direção de IA, edição e cor, entregues para redes verticais e tela larga.",
+    stats: [{ value: "21", label: "peças para clientes" }, { value: "7", label: "setores" }, { value: "4K", label: "masters" }],
+    screening: "Em exibição",
+    play: "Reproduzir showreel",
+    pause: "Pausar showreel",
+    prev: "Peça anterior",
+    next: "Próxima peça",
+    timeline: "Linha do tempo",
+    clip: "Clipe",
+    filters: { all: "Todas", fashion: "Moda", characters: "Personagens IA", food: "Alimentos", beauty: "Beleza e bem-estar", jewelry: "Joias", lifestyle: "Lifestyle", sports: "Esportes" },
+    vertical: "9:16 social",
+    wide: "Tela larga",
+    watch: "Assistir",
+    close: "Fechar player",
+    seconds: "s",
+    processTitle: "Do briefing à veiculação",
+    process: [
+      { title: "Briefing e moodboard", body: "Produto, público e canal destilados em uma ideia visual." },
+      { title: "Direção de IA", body: "Elenco, luz, lente e movimento — com prompts, iterações e direção de arte." },
+      { title: "Edição e cor", body: "Cortes no ritmo, cor alinhada à marca, acabamento quadro a quadro." },
+      { title: "Entrega em todo lugar", body: "Masters em 4K e cortes verticais para cada formato das redes." },
+    ],
   },
   experience: {
     eyebrow: "Trajetória · 経歴",
@@ -331,7 +394,7 @@ const pt: Dict = {
 };
 
 const es: Dict = {
-  nav: { home: "Inicio", about: "Sobre mí", collection: "Japón", works: "Trabajos", motion: "Vídeo", experience: "Trayectoria", toolkit: "Herramientas", menu: "Menú", close: "Cerrar", language: "Idioma", cta: "Ver trabajos" },
+  nav: { home: "Inicio", about: "Sobre mí", collection: "Japón", works: "Trabajos", motion: "Vídeo", studio: "Estudio IA", experience: "Trayectoria", toolkit: "Herramientas", menu: "Menú", close: "Cerrar", language: "Idioma", cta: "Ver trabajos" },
   hero: {
     kicker: "Desarrollador Creativo · Tokio",
     titleA: "Diseño, vídeo",
@@ -399,6 +462,32 @@ const es: Dict = {
     reel: "Showreel 2026",
     stat: "100+",
     statLabel: "ediciones promocionales y explicativos animados",
+  },
+  studio: {
+    eyebrow: "Estudio de anuncios IA · 広告",
+    title: "Comerciales para clientes, dirigidos con IA.",
+    body: "Veintiuna piezas para marcas de moda, alimentación, belleza, joyería y deporte — concepto, dirección de IA, edición y color, entregadas para redes verticales y pantalla ancha.",
+    stats: [{ value: "21", label: "piezas para clientes" }, { value: "7", label: "sectores" }, { value: "4K", label: "masters" }],
+    screening: "En pantalla",
+    play: "Reproducir showreel",
+    pause: "Pausar showreel",
+    prev: "Pieza anterior",
+    next: "Pieza siguiente",
+    timeline: "Línea de tiempo",
+    clip: "Clip",
+    filters: { all: "Todas", fashion: "Moda", characters: "Personajes IA", food: "Alimentación", beauty: "Belleza y bienestar", jewelry: "Joyería", lifestyle: "Estilo de vida", sports: "Deportes" },
+    vertical: "9:16 social",
+    wide: "Pantalla ancha",
+    watch: "Ver",
+    close: "Cerrar reproductor",
+    seconds: "s",
+    processTitle: "Del brief a la emisión",
+    process: [
+      { title: "Brief y moodboard", body: "Producto, público y canal destilados en una sola idea visual." },
+      { title: "Dirección de IA", body: "Casting, luz, lente y movimiento — con prompts, iteración y dirección de arte." },
+      { title: "Edición y color", body: "Cortes al ritmo, color fiel a la marca, acabado fotograma a fotograma." },
+      { title: "Entrega en todas partes", body: "Masters en 4K y cortes verticales para cada formato social." },
+    ],
   },
   experience: {
     eyebrow: "Trayectoria · 経歴",
